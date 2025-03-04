@@ -272,11 +272,13 @@ uint16_t icm_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint16_
 	int err = 0;
 	uint16_t total = 0;
 	uint16_t packets = UINT16_MAX;
-	while (packets > 0 && len >= PACKET_SIZE)
+	while (packets > 1 && len >= PACKET_SIZE)
 	{
 		uint8_t rawCount[2];
 		err |= i2c_burst_read_dt(dev_i2c, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 		uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
+		float read_time_ms = count * 0.6;
+		count += read_time_ms;
 		packets = count	/ PACKET_SIZE;
 		uint16_t limit = len / PACKET_SIZE;
 		if (packets > limit)
