@@ -242,53 +242,33 @@ int icm45_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float 
 	return 0;
 }
 
-static const uint8_t empty[PACKET_SIZE] = {[0 ... 7] = 0x7f};
-
 uint16_t icm45_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint16_t len) // TODO: check if working
 {
 	int err = 0;
 	uint16_t total = 0;
 	uint16_t packets = UINT16_MAX;
-	uint16_t empty_packets = 0;
-	while (packets > 0 && len >= PACKET_SIZE)
+	while (packets > 1 && len >= PACKET_SIZE)
 	{
-		memset(data, 0x7F, PACKET_SIZE); // Empty packet is 7F filled
 		uint8_t rawCount[2];
 		err |= i2c_burst_read_dt(dev_i2c, ICM45686_FIFO_COUNT_0, &rawCount[0], 2);
 		packets = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
+		float read_time_ms = packets * 0.6;
+		packets += read_time_ms;
+		uint16_t count = packets * PACKET_SIZE;
 		uint16_t limit = len / PACKET_SIZE;
 		if (packets > limit)
-			packets = limit;
-		// specially handle packet error from unknown fifo corruption
-		// TODO: this will discard some data in fifo, however the data is actually recoverable.
-		for (int i = 0; i < packets; i++)
 		{
-			err |= i2c_burst_read_dt(dev_i2c, ICM45686_FIFO_DATA, &data[i * PACKET_SIZE], PACKET_SIZE); // must check each packet as its coming in
-			// header should initially be 0x00, and 0x78 once data is being written correctly
-			if (!fifo_primed && data[i * PACKET_SIZE] == 0x78) // wait for first valid packet
-			{
-				LOG_INF("FIFO ready");
-				fifo_primed = true;
-			}
-			else if (data[i * PACKET_SIZE] != 0x78 && fifo_primed) // immediately reset fifo on invalid packet
-			{
-				if (!memcmp(&data[i * PACKET_SIZE], empty, PACKET_SIZE)) // skip if read empty packet
-				{
-					empty_packets++;
-					continue;
-				}
-				LOG_ERR("FIFO error on packet %d/%d", i, packets);
-				LOG_WRN("Discarded %d packets", packets - i);
-				fifo_primed = false;
-				err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG3, 0x00); // stop FIFO
-				err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG0, 0x00); // reset FIFO config
-				err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG0, 0x40 | 0b000111); // set FIFO Stream mode, set FIFO depth to 2K bytes
-				err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG3, 0x0F); // begin FIFO stream, hires, a+g
-			}
-			else if (!fifo_primed)
-			{
-				LOG_INF("Current header: 0x%02X", data[i * PACKET_SIZE]);
-			}
+			packets = limit;
+			count = packets * PACKET_SIZE;
+		}
+		uint16_t offset = 0;
+		uint8_t addr = ICM45686_FIFO_DATA;
+		err |= i2c_write_dt(dev_i2c, &addr, 1); // Start read buffer
+		while (count > 0)
+		{
+			err |= i2c_read_dt(dev_i2c, &data[offset], count > 240 ? 240 : count); // Read less than 255 at a time (for nRF52832)
+			offset += 240;
+			count = count > 240 ? count - 240 : 0;
 		}
 		if (err)
 			LOG_ERR("I2C error");
@@ -296,8 +276,6 @@ uint16_t icm45_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint1
 		len -= packets * PACKET_SIZE;
 		total += packets;
 	}
-	if (empty_packets)
-		LOG_WRN("FIFO read %d/%d empty packet%s", empty_packets, total, empty_packets > 1 ? "s" : "");
 	return total;
 }
 
