@@ -718,7 +718,8 @@ void main_imu_thread(void) {
 			}
 
 			// Check packet processing
-			if (processed_packets == 0) {
+			if (packets != 0 && processed_packets == 0)
+			{
 				LOG_WRN("No packets processed");
 				if (++packet_errors == 10) {
 					LOG_ERR("Packet error threshold exceeded");
@@ -728,7 +729,9 @@ void main_imu_thread(void) {
 				}
 			} else if (processed_packets < packets) {
 				LOG_WRN("Only %u/%u packets processed", processed_packets, packets);
-			} else {
+			}
+			else if (packets > 0)
+			{
 				packet_errors = 0;
 			}
 
