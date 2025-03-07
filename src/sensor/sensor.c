@@ -497,7 +497,6 @@ static bool send_info = false;
 
 static int packet_errors = 0;
 
-#include <hal/nrf_gpio.h>
 void main_imu_thread(void)
 {
 	main_running = true;
@@ -507,8 +506,6 @@ void main_imu_thread(void)
 		set_status(SYS_STATUS_SENSOR_ERROR, true); // TODO: only handles general init error
 	else
 		main_ok = true;
-nrf_gpio_cfg_output(24);
-nrf_gpio_cfg_output(11);
 	while (1)
 	{
 		int64_t time_begin = k_uptime_get();
@@ -532,7 +529,6 @@ nrf_gpio_cfg_output(11);
 			float temp = sensor_imu->temp_read(&sensor_imu_dev); // TODO: use as calibration data
 			connection_update_sensor_temp(temp);
 
-			nrf_gpio_pin_toggle(24);
 			// Read gyroscope (FIFO)
 #if CONFIG_SENSOR_USE_LOW_POWER_2
 			uint8_t* rawData = (uint8_t*)k_malloc(2048);  // Limit FIFO read to 2048 bytes (worst case is ICM 20 byte packet at 1000Hz and 100ms update time)
@@ -606,7 +602,6 @@ nrf_gpio_cfg_output(11);
 			max_gyro_speed_square = 0;
 			int processed_packets = 0;
 			float *gyroBias = sensor_calibration_get_gyroBias();
-			nrf_gpio_pin_toggle(24);
 			for (uint16_t i = 0; i < packets; i++) // TODO: fifo_process_ext is available, need to implement it
 			{
 				float raw_a[3] = {0};
@@ -669,7 +664,6 @@ nrf_gpio_cfg_output(11);
 			if (mag_available && mag_enabled)
 				sensor_fusion->update_mag(m, sensor_update_time_ms / 1000.0); // TODO: use actual time?
 
-			nrf_gpio_pin_toggle(24);
 			// Free the FIFO buffer
 			k_free(rawData);
 
@@ -851,7 +845,6 @@ nrf_gpio_cfg_output(11);
 			k_yield();
 		else
 			k_msleep(sensor_update_time_ms - time_delta);
-		nrf_gpio_pin_toggle(11);
 		main_running = true;
 	}
 }
