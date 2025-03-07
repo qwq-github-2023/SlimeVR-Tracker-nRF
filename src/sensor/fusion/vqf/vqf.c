@@ -154,10 +154,20 @@ void vqf_get_lin_a(float* lin_a) {
 
 void vqf_get_quat(float* q) { getQuat9D(&state, q); }
 
-const sensor_fusion_t sensor_fusion_vqf
-	= {*vqf_init,
-	   *vqf_load,
-	   *vqf_save,
+bool vqf_get_rest_detected(void)
+{
+	return getRestDetected(&state);
+}
+
+void vqf_get_relative_rest_deviations(float *out)
+{
+	getRelativeRestDeviations(&params, &state, out);
+}
+
+const sensor_fusion_t sensor_fusion_vqf = {
+	*vqf_init,
+	*vqf_load,
+	*vqf_save,
 
 	   *vqf_update_gyro,
 	   *vqf_update_accel,
