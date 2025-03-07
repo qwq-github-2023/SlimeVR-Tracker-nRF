@@ -22,7 +22,7 @@ static float clock_scale = 1; // ODR is scaled by clock_rate/clock_reference
 
 static bool fifo_primed = false;
 
-#define FIFO_MULT 0.00075 // assuming i2c fast mode
+#define FIFO_MULT 0.00075f // assuming i2c fast mode
 
 static float fifo_multiplier = 0;
 
@@ -258,6 +258,8 @@ int icm45_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float 
 	return 0;
 }
 
+static const uint8_t empty[PACKET_SIZE] = {[0 ... 7] = 0x7f};
+
 uint16_t icm45_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint16_t len) // TODO: check if working
 {
 	int err = 0;
@@ -321,6 +323,8 @@ uint16_t icm45_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint1
 			LOG_INF("Current header: 0x%02X", data[i * PACKET_SIZE]);
 		}
 	}
+	if (empty_packets)
+		LOG_WRN("FIFO read %d/%d empty packet%s", empty_packets, total, empty_packets > 1 ? "s" : "");
 	return total;
 }
 

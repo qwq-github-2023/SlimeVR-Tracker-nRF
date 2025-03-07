@@ -30,7 +30,7 @@ static uint8_t last_gyro_odr = 0xff;
 static const float clock_reference = 32000;
 static float clock_scale = 1; // ODR is scaled by clock_rate/clock_reference
 
-#define FIFO_MULT 0.00075 // assuming i2c fast mode
+#define FIFO_MULT 0.00075f // assuming i2c fast mode
 
 static float fifo_multiplier = 0;
 
