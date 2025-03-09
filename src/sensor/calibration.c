@@ -53,11 +53,6 @@ uint8_t *sensor_calibration_get_sensor_data()
 	return sensor_data;
 }
 
-uint8_t *sensor_calibration_get_sensor_data()
-{
-	return sensor_data;
-}
-
 float* sensor_calibration_get_accelBias() { return accelBias; }
 
 float (*sensor_calibration_get_accBAinv())[3] { return accBAinv; }
