@@ -15,6 +15,8 @@
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/crc.h>
 
+#include "build_defines.h"
+
 #if DT_NODE_HAS_STATUS_OKAY(DT_ALIAS(retainedmemdevice))
 #define MEMORY_REGION DT_PARENT(DT_ALIAS(retainedmemdevice))
 #else
@@ -48,10 +50,8 @@ bool retained_validate(void)
 	 */
 	if (!valid) {
 		memset(retained, 0, sizeof(struct retained_data));
+		retained->build_timestamp = BUILD_TIMESTAMP;
 	}
-
-	/* Reset to accrue runtime from this session. */
-	retained->uptime_latest = 0;
 
 	/* Reset to accrue runtime from this session. */
 	retained->uptime_latest = 0;
