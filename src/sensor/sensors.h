@@ -43,6 +43,7 @@
 #include "mag/LIS2MDL.h"
 #include "mag/LIS3MDL.h"
 #include "mag/MMC5983MA.h"
+#include "mag/QMC6309.h"
 
 #include "scan.h"
 #include "scan_spi.h"
@@ -114,6 +115,8 @@ const int i2c_dev_imu[] = {
 const char *dev_mag_names[] = {
 	"HMC5883L",
 	"QMC5883L",
+	"QMC6309",
+	"QMC6310",
 	"AK8963",
 	"AK09916",
 	"AK09940",
@@ -132,28 +135,31 @@ const char *dev_mag_names[] = {
 	"MMC5983MA"
 };
 const sensor_mag_t *sensor_mags[] = {
-	&sensor_mag_none, // will not implement, too low quality
-	&sensor_mag_none, // not implemented
-	&sensor_mag_none,
-	&sensor_mag_none,
+	&sensor_mag_none, // HMC5883 will not implement, too low quality
+	&sensor_mag_none, // QMC5883 not implemented
+	&sensor_mag_qmc6309,
+	&sensor_mag_none, // QMC6310
+	&sensor_mag_none, // AK8963
+	&sensor_mag_none, // AK09916
 	&sensor_mag_ak09940,
 	&sensor_mag_bmm150,
 	&sensor_mag_bmm350,
 	&sensor_mag_ist8306,
 	&sensor_mag_ist8308,
-	&sensor_mag_none,
-	&sensor_mag_none,
+	&sensor_mag_none, // IST8320
+	&sensor_mag_none, // IST8321
 	&sensor_mag_lis2mdl,
 	&sensor_mag_lis3mdl,
-	&sensor_mag_none,
-	&sensor_mag_none,
-	&sensor_mag_none,
-	&sensor_mag_none,
+	&sensor_mag_none, // MMC34160
+	&sensor_mag_none, // MMC3630
+	&sensor_mag_none, // MMC5603/MMC5633
+	&sensor_mag_none, // MMC5616
 	&sensor_mag_mmc5983ma
 };
 const int i2c_dev_mag_addr_count = 9;
 const uint8_t i2c_dev_mag_addr[] = {
 	1,	0x0B,
+	3,  0x7C,0x1C,0x3C,
 	1,	0x0C,
 	3,	0x0D,0x0E,0x0F,
 	4,	0x10,0x11,0x12,0x13, // why bosch
@@ -165,6 +171,7 @@ const uint8_t i2c_dev_mag_addr[] = {
 };
 const uint8_t i2c_dev_mag_reg[] = {
 	1,	0x0D,
+	1,  0x00,
 	2,	0x01, // AK09916/AK09940 first
 		0x00,
 	2,	0x01, // AK09940 first
@@ -182,6 +189,7 @@ const uint8_t i2c_dev_mag_reg[] = {
 };
 const uint8_t i2c_dev_mag_id[] = {
 	1,	0xFF, // reg 0x0D
+	2,  0x90,0x80, // reg 0x00
 	2,	0x09,0xA3, // reg 0x01
 	2,	0x08,0x48, // reg 0x00
 	1,	0xA3, // reg 0x01
@@ -199,6 +207,7 @@ const uint8_t i2c_dev_mag_id[] = {
 };
 const int i2c_dev_mag[] = {
 	MAG_QMC5883L,
+	MAG_QMC6309, MAG_QMC6310,
 	MAG_AK09916, MAG_AK09940,
 	MAG_IST8308, MAG_AK8963,
 	MAG_AK09940,
