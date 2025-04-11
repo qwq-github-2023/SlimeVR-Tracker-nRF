@@ -827,9 +827,9 @@ void main_imu_thread(void)
 			{
 				float gyro_speed = sqrtf(max_gyro_speed_square);
 				float mag_target_time = 1.0f / (4 * gyro_speed); // target mag ODR for ~0.25 deg error
-				if (mag_target_time < 0.005f) // cap at 0.005 (200hz), above this the sensor will use oneshot mode instead
+				if (mag_target_time <= 0.005f) // cap at 0.005 (200hz), above this the sensor will use oneshot mode instead
 				{
-					mag_target_time = 0.005;
+					mag_target_time = 0.005f;
 					sys_interface_resume();
 					int err = sensor_mag->update_odr(INFINITY, &mag_actual_time);
 					sys_interface_suspend();
@@ -837,14 +837,14 @@ void main_imu_thread(void)
 						LOG_DBG("Switching magnetometer to oneshot");
 					mag_use_oneshot = true;
 				}
-				if (mag_target_time >= 0.005f || mag_actual_time != INFINITY) // under 200Hz or magnetometer did not have a oneshot mode
+				if (mag_target_time > 0.005f || mag_actual_time != INFINITY) // under 200Hz or magnetometer did not have a oneshot mode
 				{
 					sys_interface_resume();
 					int err = sensor_mag->update_odr(mag_target_time, &mag_actual_time);
 					sys_interface_suspend();
 					if (!err)
 						LOG_DBG("Switching magnetometer ODR to %.2fHz", 1.0 / (double)mag_actual_time);
-					mag_use_oneshot = false;
+					mag_use_oneshot = (mag_actual_time == INFINITY);
 				}
 			}
 
@@ -903,6 +903,8 @@ void main_imu_thread(void)
 		main_running = false;
 //		k_sleep(K_FOREVER);
 		int64_t time_delta = k_uptime_get() - time_begin;
+		if(time_delta > 100)
+			LOG_WRN("Update took %lld ms", time_delta);
 //		led_clock_offset += time_delta;
 		if (time_delta > sensor_update_time_ms)
 			k_yield();
