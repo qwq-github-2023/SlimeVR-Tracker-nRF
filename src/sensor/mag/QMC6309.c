@@ -62,9 +62,10 @@
 static const float sensitivity = 1000 / 4000.0f; // ~0.25 mgauss/LSB @ 8G range
 
 static uint8_t last_state = 0xff;
-static uint8_t lastOvfl = 0;
+static bool lastOvfl = false;
+static bool skipSingleTrigger = false;
 
-LOG_MODULE_REGISTER(QMC6309, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(QMC6309, LOG_LEVEL_INF);
 
 int qmc_init(float time, float *actual_time)
 {
@@ -73,8 +74,8 @@ int qmc_init(float time, float *actual_time)
 	ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_2, SOFT_RESET_CLEAR);
 	k_msleep(10);
 	// Init
-	last_state = 0xff; // reset state
-	lastOvfl = 0;
+	last_state = 0xff; // init state
+	lastOvfl = skipSingleTrigger = false;
 	// LOG_DBG("INIT");
 	int err = qmc_update_odr(time, actual_time);
 	return (err < 0 ? err : 0);
@@ -151,12 +152,15 @@ int qmc_update_odr(float time, float *actual_time)
 		return 1;
 	last_state = STAT;
 
+	if (MD == MD_SINGLE)
+		skipSingleTrigger = true;
+
 	// if (time <= 0)
 	// 	LOG_DBG("MD_SUSPEND");
 	// else if (time == INFINITY)
 	// 	LOG_DBG("MD_SINGLE");
 	// else
-	// 	LOG_DBG("MD_CONTINUOUS %f", time);
+	// 	LOG_DBG("MD_CONTINUOUS %d", (int) (1 / time));
 
 	int err = ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_2, ODR_MASK(MODR) | RNG_MASK(RNG_8G) | SET_RESET_ON);
 	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_1, LPF_MASK(LPF_2) | OSR_MASK(OSR_8) | MD);
@@ -169,6 +173,12 @@ int qmc_update_odr(float time, float *actual_time)
 
 void qmc_mag_oneshot(void)
 {
+	if (skipSingleTrigger)
+	{
+		// Skip setting MD_SINGLE twice
+		skipSingleTrigger = false;
+		return;
+	}
 	// write MD_SINGLE again to trigger a measurement
 	int err = ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_1, LPF_MASK(LPF_2) | OSR_MASK(OSR_8) | MD_SINGLE);
 	// LOG_DBG("trigger MD_SINGLE");
@@ -185,7 +195,7 @@ void qmc_mag_read(float m[3])
 	{
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_STAT_REG, &status);
 		if(++retry == 1024) {
-			LOG_DBG("Data ready status timeout!");
+			LOG_WRN("Data ready status timeout!");
 			break;
 		}
 	}
@@ -197,7 +207,7 @@ void qmc_mag_read(float m[3])
 	{
 		if (lastOvfl == 0)
 		{
-			LOG_DBG("Magnetometer overflow");
+			LOG_INF("Magnetometer overflow");
 			lastOvfl = 1;
 		}
 	}
