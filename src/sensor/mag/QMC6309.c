@@ -63,15 +63,13 @@ static const float sensitivity = 1000 / 4000.0f; // ~0.25 mgauss/LSB @ 8G range
 
 static uint8_t last_state = 0xff;
 static bool lastOvfl = false;
-static bool skipSingleTrigger = false;
 
 LOG_MODULE_REGISTER(QMC6309, LOG_LEVEL_INF);
 
 int qmc_init(float time, float *actual_time)
 {
 	last_state = 0xff; // init state
-	lastOvfl = skipSingleTrigger = false;
-	// LOG_DBG("INIT");
+	lastOvfl = false;
 	int err = qmc_update_odr(time, actual_time);
 	return (err < 0 ? err : 0);
 }
@@ -148,14 +146,7 @@ int qmc_update_odr(float time, float *actual_time)
 	last_state = STAT;
 
 	if (MD == MD_SINGLE)
-		skipSingleTrigger = true;
-
-	// if (time <= 0)
-	// 	LOG_DBG("MD_SUSPEND");
-	// else if (time == INFINITY)
-	// 	LOG_DBG("MD_SINGLE");
-	// else
-	// 	LOG_DBG("MD_CONTINUOUS %d", (int) (1 / time));
+		MD = MD_SUSPEND; // set SUSPEND, oneshot will set SINGLE
 
 	int err = ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_2, ODR_MASK(MODR) | RNG_MASK(RNG_8G) | SET_RESET_ON);
 	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_1, LPF_MASK(LPF_2) | OSR_MASK(OSR_8) | MD);
@@ -168,13 +159,6 @@ int qmc_update_odr(float time, float *actual_time)
 
 void qmc_mag_oneshot(void)
 {
-	if (skipSingleTrigger)
-	{
-		// Skip setting MD_SINGLE twice
-		skipSingleTrigger = false;
-		return;
-	}
-	// write MD_SINGLE again to trigger a measurement
 	int err = ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_1, LPF_MASK(LPF_2) | OSR_MASK(OSR_8) | MD_SINGLE);
 	// LOG_DBG("trigger MD_SINGLE");
 	if (err)
