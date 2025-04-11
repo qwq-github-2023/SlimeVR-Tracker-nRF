@@ -63,6 +63,7 @@ static const float sensitivity = 1000 / 4000.0f; // ~0.25 mgauss/LSB @ 8G range
 
 static uint8_t last_state = 0xff;
 static bool lastOvfl = false;
+static int64_t oneshot_trigger_time = 0;
 
 LOG_MODULE_REGISTER(QMC6309, LOG_LEVEL_INF);
 
@@ -160,7 +161,7 @@ int qmc_update_odr(float time, float *actual_time)
 void qmc_mag_oneshot(void)
 {
 	int err = ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_1, LPF_MASK(LPF_2) | OSR_MASK(OSR_8) | MD_SINGLE);
-	// LOG_DBG("trigger MD_SINGLE");
+	oneshot_trigger_time = k_uptime_get();
 	if (err)
 		LOG_ERR("Communication error");
 }
@@ -168,16 +169,14 @@ void qmc_mag_oneshot(void)
 void qmc_mag_read(float m[3])
 {
 	int err = 0;
-	uint8_t status = 0;
-	uint16_t retry = 0;
-	while ((status & STAT_DATA_RDY_MASK) == 0) // wait for data ready flag
-	{
+	uint8_t status = oneshot_trigger_time ? 0x00 : 0x01;
+	int64_t timeout = oneshot_trigger_time + 2; // 2ms timeout
+	if (k_uptime_get() >= timeout) // already passed timeout
+		oneshot_trigger_time = 0;
+	while ((status & STAT_DATA_RDY_MASK) == 0 && k_uptime_get() < timeout) // wait for data ready flag
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_STAT_REG, &status);
-		if(++retry == 1024) {
-			LOG_WRN("Data ready status timeout!");
-			break;
-		}
-	}
+	if (oneshot_trigger_time ? k_uptime_get() >= timeout : false)
+		LOG_WRN("Data ready status timeout!");
 	uint8_t rawData[6];
 	err |= ssi_burst_read(SENSOR_INTERFACE_DEV_MAG, QMC6309_OUTX_L_REG, rawData, 6);
 	if (err)
