@@ -69,11 +69,6 @@ LOG_MODULE_REGISTER(QMC6309, LOG_LEVEL_INF);
 
 int qmc_init(float time, float *actual_time)
 {
-	// Reset
-	ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_2, SOFT_RESET_MASK);
-	ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_2, SOFT_RESET_CLEAR);
-	k_msleep(10);
-	// Init
 	last_state = 0xff; // init state
 	lastOvfl = skipSingleTrigger = false;
 	// LOG_DBG("INIT");
@@ -83,8 +78,8 @@ int qmc_init(float time, float *actual_time)
 
 void qmc_shutdown(void)
 {
-	int err = ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_1, MD_SUSPEND);
-	// LOG_DBG("MD_SUSPEND");
+	int err = ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_2, SOFT_RESET_MASK);
+	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_2, SOFT_RESET_CLEAR);
 	if (err)
 		LOG_ERR("Communication error");
 }
