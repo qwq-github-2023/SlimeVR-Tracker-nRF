@@ -71,6 +71,7 @@ int qmc_init(float time, float *actual_time)
 {
 	last_state = 0xff; // init state
 	lastOvfl = false;
+	oneshot_trigger_time = 0;
 	int err = qmc_update_odr(time, actual_time);
 	return (err < 0 ? err : 0);
 }
@@ -89,14 +90,9 @@ int qmc_update_odr(float time, float *actual_time)
 	uint8_t MODR;
 	uint8_t MD;
 
-	if (time <= 0) // off
+	if (time <= 0 || time == INFINITY) // power down mode or single measurement mode
 	{
-		MD = MD_SUSPEND;
-		ODR = 0;
-	}
-	else if (time == INFINITY) // oneshot/single
-	{
-		MD = MD_SINGLE;
+		MD = MD_SUSPEND; // oneshot will set SINGLE after
 		ODR = 0;
 	}
 	else
@@ -107,7 +103,7 @@ int qmc_update_odr(float time, float *actual_time)
 
 	if (MD == MD_SUSPEND)
 	{
-		MODR = ODR_1Hz;
+		MODR = ODR_200Hz; // for oneshot
 		time = 0; // off
 	}
 	else if (ODR > 100)
@@ -130,15 +126,10 @@ int qmc_update_odr(float time, float *actual_time)
 		MODR = ODR_10Hz;
 		time = 1.f / 10;
 	}
-	else if (ODR > 0)
+	else if (ODR >= 0)
 	{
 		MODR = ODR_1Hz;
 		time = 1.f;
-	}
-	else // single
-	{
-		MODR = ODR_1Hz;
-		time = INFINITY;
 	}
 
 	uint8_t STAT = ODR_MASK(MODR) | MD;
@@ -146,13 +137,12 @@ int qmc_update_odr(float time, float *actual_time)
 		return 1;
 	last_state = STAT;
 
-	if (MD == MD_SINGLE)
-		MD = MD_SUSPEND; // set SUSPEND, oneshot will set SINGLE
-
 	int err = ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_2, ODR_MASK(MODR) | RNG_MASK(RNG_8G) | SET_RESET_ON);
 	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_CTRL_REG_1, LPF_MASK(LPF_2) | OSR_MASK(OSR_8) | MD);
 	if (err)
 		LOG_ERR("Communication error");
+
+	oneshot_trigger_time = 0;
 
 	*actual_time = time;
 	return err;
@@ -169,22 +159,23 @@ void qmc_mag_oneshot(void)
 void qmc_mag_read(float m[3])
 {
 	int err = 0;
-	uint8_t status = oneshot_trigger_time ? 0x00 : 0x01;
-	int64_t timeout = oneshot_trigger_time + 2; // 2ms timeout
-	if (k_uptime_get() >= timeout) // already passed timeout
-		oneshot_trigger_time = 0;
-	while ((status & STAT_DATA_RDY_MASK) == 0 && k_uptime_get() < timeout) // wait for data ready flag
+	uint8_t status = 0; // Always check DRDY
+	int64_t timeout = (oneshot_trigger_time ? oneshot_trigger_time : k_uptime_get()) + 2; // 2ms timeout
+	while ((status & STAT_DATA_RDY_MASK) == 0) // wait for data ready flag
+	{
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_STAT_REG, &status);
-	if (oneshot_trigger_time ? k_uptime_get() >= timeout : false)
-		LOG_WRN("Data ready status timeout!");
-	uint8_t rawData[6];
-	err |= ssi_burst_read(SENSOR_INTERFACE_DEV_MAG, QMC6309_OUTX_L_REG, rawData, 6);
-	if (err)
-		LOG_ERR("Communication error");
+		if(k_uptime_get() > timeout)
+		{
+			LOG_WRN("Data ready status timeout!");
+			break;
+		}
+	}
+	oneshot_trigger_time = 0;
 	if (status & STAT_OVERFLOW_MASK) // check overflow flag
 	{
 		if (lastOvfl == 0)
 		{
+			// TODO should we skip the reading to not confuse fusion?
 			LOG_INF("Magnetometer overflow");
 			lastOvfl = 1;
 		}
@@ -193,6 +184,10 @@ void qmc_mag_read(float m[3])
 	{
 		lastOvfl = 0;
 	}
+	uint8_t rawData[6];
+	err |= ssi_burst_read(SENSOR_INTERFACE_DEV_MAG, QMC6309_OUTX_L_REG, rawData, 6);
+	if (err)
+		LOG_ERR("Communication error");
 	qmc_mag_process(rawData, m);
 }
 
@@ -203,15 +198,6 @@ void qmc_mag_process(uint8_t *raw_m, float m[3])
 		m[i] = ((uint16_t*)raw_m)[i];
 		m[i] *= sensitivity; // result in mGauss
 	}
-	// static uint8_t skip_cnt = 0;
-	// if (++skip_cnt == 1)
-	// {
-	// 	int16_t x = ((uint16_t*)raw_m)[0];
-	// 	int16_t y = ((uint16_t*)raw_m)[1];
-	// 	int16_t z = ((uint16_t*)raw_m)[2];
-	// 	LOG_DBG("%d %d %d", x, y, z);
-	// 	skip_cnt = 0;
-	// }
 }
 
 const sensor_mag_t sensor_mag_qmc6309 = {
