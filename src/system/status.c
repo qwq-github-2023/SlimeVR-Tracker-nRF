@@ -16,24 +16,28 @@ K_THREAD_DEFINE(status_thread_id, 256, status_thread, NULL, NULL, NULL, 6, 0, 0)
 void set_status(enum sys_status status, bool set) {
 	if (set) {
 		status_state |= status;
-		switch (status) {
-			case SYS_STATUS_SENSOR_ERROR:
-				LOG_ERR("Sensor communication error");
-				break;
-			case SYS_STATUS_CONNECTION_ERROR:
-				LOG_WRN("Connection error");
-				break;
-			case SYS_STATUS_SYSTEM_ERROR:
-				LOG_ERR("General error");
-				break;
-			case SYS_STATUS_USB_CONNECTED:
-				LOG_INF("USB connected");
-				break;
-			case SYS_STATUS_PLUGGED:
-				LOG_INF("Charger plugged");
-				break;
-			default:
-				break;
+		switch (status)
+		{
+		case SYS_STATUS_SENSOR_ERROR:
+			LOG_ERR("Sensor communication error");
+			break;
+		case SYS_STATUS_CONNECTION_ERROR:
+			LOG_WRN("Connection error");
+			break;
+		case SYS_STATUS_SYSTEM_ERROR:
+			LOG_ERR("General error");
+			break;
+		case SYS_STATUS_USB_CONNECTED:
+			LOG_INF("USB connected");
+			break;
+		case SYS_STATUS_PLUGGED:
+			LOG_INF("Charger plugged");
+			break;
+		case SYS_STATUS_CALIBRATION_RUNNING:
+			LOG_INF("Calibration running");
+			break;
+		default:
+			break;
 		}
 	} else {
 		status_state &= ~status;
