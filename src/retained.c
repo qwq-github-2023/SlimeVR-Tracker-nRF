@@ -38,7 +38,14 @@ bool retained_validate(void)
 				  RETAINED_CHECKED_SIZE);
 	bool valid = (crc == residue);
 
-	/* If the CRC isn't valid, reset the retained data. */
+	/* Check the build timestamp of the firmware that last updated
+	 * the retained data.
+	 */
+	valid &= (retained->build_timestamp == BUILD_TIMESTAMP);
+
+	/* If the CRC isn't valid or the build timestamp is different
+	 * from the current build timestamp, reset the retained data.
+	 */
 	if (!valid) {
 		memset(retained, 0, sizeof(struct retained_data));
 	}
