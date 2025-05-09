@@ -47,11 +47,11 @@ int main(void) {
 	bool reset_pin_reset = false;
 #else
 #ifdef NRF_RESET
-	bool reset_pin_reset = NRF_RESET->RESETREAS & 0x01;
-	NRF_RESET->RESETREAS = NRF_RESET->RESETREAS;  // Clear RESETREAS
+	bool reset_pin_reset = NRF_RESET->RESETREAS & RESET_RESETREAS_RESETPIN_Msk;
+	NRF_RESET->RESETREAS = NRF_RESET->RESETREAS; // Clear RESETREAS
 #else
-	bool reset_pin_reset = NRF_POWER->RESETREAS & 0x01;
-	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS;  // Clear RESETREAS
+	bool reset_pin_reset = NRF_POWER->RESETREAS & POWER_RESETREAS_RESETPIN_Msk;
+	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 #endif
 #endif
 
