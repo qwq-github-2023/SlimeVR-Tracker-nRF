@@ -47,8 +47,14 @@ void set_status(enum sys_status status, bool set) {
 	LOG_INF("Status: %d", status_state);
 }
 
-static void status_thread(void) {
-	while (1)  // cycle through errors
+bool get_status(enum sys_status status)
+{
+	return status_state & status;
+}
+
+static void status_thread(void)
+{
+	while (1) // cycle through errors
 	{
 		int status = status_state
 				   & (SYS_STATUS_SENSOR_ERROR | SYS_STATUS_CONNECTION_ERROR
