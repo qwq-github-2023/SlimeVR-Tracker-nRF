@@ -25,7 +25,7 @@ enum sys_regulator {
 	SYS_REGULATOR_LDO
 };
 
-static uint32_t last_battery_pptt[16] = {[0 ... 15] = 10001};
+static int16_t last_battery_pptt[16] = {[0 ... 15] = -1};
 static int last_battery_pptt_index = 0;
 static bool battery_low = false;
 
@@ -50,8 +50,7 @@ K_THREAD_DEFINE(power_thread_id, 1024, power_thread, NULL, NULL, NULL, 6, 0, 0);
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
 #define DCDC_EN_EXISTS true
-static const struct gpio_dt_spec dcdc_en
-	= GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dcdc_gpios);
+static const struct gpio_dt_spec dcdc_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dcdc_gpios);
 #else
 #pragma message "DCDC enable GPIO does not exist"
 #endif
@@ -126,10 +125,12 @@ static void configure_system_off(void)
 	configure_sense_pins();
 }
 
-static void set_regulator(enum sys_regulator regulator) {
+static void set_regulator(enum sys_regulator regulator)
+{
 #if DCDC_EN_EXISTS
 	bool use_dcdc = regulator == SYS_REGULATOR_DCDC;
-	if (use_dcdc) {
+	if (use_dcdc)
+	{
 		gpio_pin_set_dt(&dcdc_en, 1);
 		LOG_INF("Enabled DCDC");
 	}
@@ -140,7 +141,8 @@ static void set_regulator(enum sys_regulator regulator) {
 	LOG_INF("%s", use_ldo ? "Enabled LDO" : "Disabled LDO");
 #endif
 #if DCDC_EN_EXISTS
-	if (!use_dcdc) {
+	if (!use_dcdc)
+	{
 		gpio_pin_set_dt(&dcdc_en, 0);
 		LOG_INF("Disabled DCDC");
 	}
@@ -179,7 +181,7 @@ void sys_request_WOM(bool force) // TODO: if IMU interrupt does not exist what d
 		if (k_uptime_get() < system_off_timeout)
 		{
 			LOG_INF("IMU wake up not available, waiting on ESB/status ready");
-			return;  // not timed out yet, skip system off
+			return; // not timed out yet, skip system off
 		}
 		LOG_INF("ESB/status ready timed out");
 		// this may mean the system never enters system off if sys_request_WOM is not called again after the timeout
@@ -187,10 +189,10 @@ void sys_request_WOM(bool force) // TODO: if IMU interrupt does not exist what d
 #endif
 	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	sensor_retained_write();
-#if WOM_USE_DCDC  // In case DCDC is more efficient in the 10-100uA range
-	set_regulator(SYS_REGULATOR_DCDC);  // Make sure DCDC is selected
+#if WOM_USE_DCDC // In case DCDC is more efficient in the 10-100uA range
+	set_regulator(SYS_REGULATOR_DCDC); // Make sure DCDC is selected
 #else
-	set_regulator(SYS_REGULATOR_LDO);  // Switch to LDO
+	set_regulator(SYS_REGULATOR_LDO); // Switch to LDO
 #endif
 	// Set system off
 	uint8_t pin_config = sensor_setup_WOM(); // enable WOM feature
@@ -214,16 +216,16 @@ void sys_request_WOM(bool force) // TODO: if IMU interrupt does not exist what d
 #endif
 }
 
-void sys_request_system_off(void)  // TODO: add timeout
+void sys_request_system_off(void) // TODO: add timeout
 {
 	LOG_INF("System off requested");
-	main_imu_suspend();  // TODO: should be a common shutdown step
-	configure_system_off();  // Common subsystem shutdown and prepare sense pins
+	main_imu_suspend(); // TODO: should be a common shutdown step
+	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Clear sensor addresses
 	sensor_scan_clear();
 	LOG_INF("Requested sensor scan on next boot");
-	//	sensor_retained_write();
-	set_regulator(SYS_REGULATOR_LDO);  // Switch to LDO
+//	sensor_retained_write();
+	set_regulator(SYS_REGULATOR_LDO); // Switch to LDO
 	// Set system off
 	LOG_INF("Powering off nRF");
 	retained_update();
@@ -234,11 +236,11 @@ void sys_request_system_off(void)  // TODO: add timeout
 	sys_poweroff();
 }
 
-void sys_request_system_reboot(void)  // TODO: add timeout
+void sys_request_system_reboot(void) // TODO: add timeout
 {
 	LOG_INF("System reboot requested");
-	configure_system_off();  // Common subsystem shutdown and prepare sense pins
-	//	sensor_retained_write();
+	configure_system_off(); // Common subsystem shutdown and prepare sense pins
+//	sensor_retained_write();
 	// Set system reboot
 	LOG_INF("Rebooting nRF");
 	retained_update();
@@ -249,11 +251,10 @@ void sys_request_system_reboot(void)  // TODO: add timeout
 	sys_reboot(SYS_REBOOT_COLD);
 }
 
-bool vin_read(void)  // blocking
+bool vin_read(void) // blocking
 {
-	while (!power_init) {
-		k_usleep(1);  // wait for first battery read
-	}
+	while (!power_init)
+		k_usleep(1); // wait for first battery read
 	return plugged;
 }
 
@@ -277,58 +278,58 @@ static void power_thread(void)
 		bool charged = stby_read();
 
 		int battery_mV;
-		uint32_t battery_pptt = read_batt_mV(&battery_mV);
+		int16_t battery_pptt = read_batt_mV(&battery_mV);
 
 		bool abnormal_reading = battery_mV < 100 || battery_mV > 6000;
 		bool battery_available = battery_mV > 1500 && !abnormal_reading; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
 		bool battery_discharged = battery_available && battery_pptt == 0;
 		// Separate detection of vin
-		if (!plugged && battery_mV > 4300 && !abnormal_reading) {
+		if (!plugged && battery_mV > 4300 && !abnormal_reading)
 			plugged = true;
-		} else if ((plugged && battery_mV <= 4250) || abnormal_reading) {
+		else if ((plugged && battery_mV <= 4250) || abnormal_reading)
 			plugged = false;
-		}
 #ifdef POWER_USBREGSTATUS_VBUSDETECT_Msk
 		bool usb_plugged = NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk;
 #else
 		bool usb_plugged = false;
 #endif
 
-		if (!power_init) {
+		if (!power_init)
+		{
 			// log battery state once
-			if (battery_available) {
-				LOG_INF("Battery %u%% (%dmV)", battery_pptt / 100, battery_mV);
-			} else {
+			if (battery_available)
+				LOG_INF("Battery %u%% (%dmV)", battery_pptt/100, battery_mV);
+			else
 				LOG_INF("Battery not available (%dmV)", battery_mV);
-			}
-			if (abnormal_reading) {
+			if (abnormal_reading)
+			{
 				LOG_ERR("Battery voltage reading is abnormal");
 				set_status(SYS_STATUS_SYSTEM_ERROR, true);
 			}
-			set_regulator(SYS_REGULATOR_DCDC);  // Switch to DCDC
+			set_regulator(SYS_REGULATOR_DCDC); // Switch to DCDC
 			power_init = true;
 		}
 
-		if (battery_discharged || docked) {
+		if (battery_discharged || docked)
+		{
 			if (battery_discharged)
 				LOG_WRN("Discharged battery");
 			sys_request_system_off();
 		}
 
-		if (battery_available && !battery_low && battery_pptt < 1000) {
+		if (battery_available && !battery_low && battery_pptt < 1000)
 			battery_low = true;
-		} else if (!battery_available || (battery_low && battery_pptt > 1500)) {  // hysteresis
+		else if (!battery_available || (battery_low && battery_pptt > 1500)) // hysteresis
 			battery_low = false;
-		}
 
 		// Average battery readings across 16 samples (last reading is first sample)
-		uint32_t average_battery_pptt = battery_pptt;
-		for (uint8_t i = 0; i < 15; i++) {
-			if (last_battery_pptt[i] == 10001) {
+		int32_t average_battery_pptt = battery_pptt;
+		for (uint8_t i = 0; i < 15; i++)
+		{
+			if (NRFX_ABS(average_battery_pptt - last_battery_pptt[i]) > 100 || last_battery_pptt[i] == -1)
 				average_battery_pptt += average_battery_pptt / (i + 1);
-			} else {
+			else
 				average_battery_pptt += last_battery_pptt[i];
-			}
 		}
 		average_battery_pptt /= 16;
 
@@ -356,18 +357,17 @@ static void power_thread(void)
 			set_status(SYS_STATUS_PLUGGED, false);
 		}
 
-		if (charging) {
+		if (charging)
 			set_led(SYS_LED_PATTERN_PULSE_PERSIST, SYS_LED_PRIORITY_SYSTEM);
-		} else if (charged) {
+		else if (charged)
 			set_led(SYS_LED_PATTERN_ON_PERSIST, SYS_LED_PRIORITY_SYSTEM);
-		} else if (plugged || usb_plugged) {
+		else if (plugged || usb_plugged)
 			set_led(SYS_LED_PATTERN_PULSE_PERSIST, SYS_LED_PRIORITY_SYSTEM);
-		} else if (battery_low) {
+		else if (battery_low)
 			set_led(SYS_LED_PATTERN_LONG_PERSIST, SYS_LED_PRIORITY_SYSTEM);
-		} else {
+		else
 			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST, SYS_LED_PRIORITY_SYSTEM);
-		}
-		//			set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SYSTEM);
+//			set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SYSTEM);
 
 		k_msleep(100);
 	}
