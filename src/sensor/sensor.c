@@ -67,6 +67,37 @@ static float q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 static float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 
 static float q3[4] = {SENSOR_QUATERNION_CORRECTION}; // correction quaternion
+#if CONFIG_SELECT_DEVICE_ORIENTATION
+static uint8_t device_orientation_idx = 0x00;
+static float device_orientation[] =
+{
+	SENSOR_QUATERNION_CORRECTION,  // 0 = default
+	0.0f, 0.0f, 0.0f, 1.0f,        // 1
+	0.0f, 0.7071f, 0.0f, 0.7071f,  // 2
+	0.0f, 1.0f, 0.0f, 0.0f,        // 3
+	0.0f, -0.7071f, 0.0f, 0.7071f, // 4
+	0.0f, 0.0f, 0.7071f, 0.7071f,  // 5
+	0.5f, 0.5f, 0.5f, 0.5f,        // 6
+	0.7071f, 0.7071f, 0.0f, 0.0f,  // 7
+	-0.5f, -0.5f, 0.5f, 0.5f,      // 8
+	0.0f, 0.f, -0.7071f, 0.7071f,  // 9
+	-0.5f, 0.5f, -0.5f, 0.5f,      // 10
+	-0.7071f, 0.7071f, 0.0f, 0.0f, // 11
+	0.5f, -0.5f, -0.5f, 0.5f,      // 12
+	0.7071f, 0.0f, 0.f, 0.7071f,   // 13
+	0.5f, 0.5f, -0.5f, 0.5f,       // 14
+	0.0f, 0.7071f, -0.7071f, 0.0f, // 15
+	0.5f, -0.5f, 0.5f, 0.5f,       // 16
+	1.0f, 0.0f, 0.0f, 0.0f,        // 17
+	0.7071f, 0.0f, -0.7071f, 0.0f, // 18
+	0.0f, 0.0f, 1.0f, 0.0f,        // 19
+	0.7071f, 0.0f, 0.7071f, 0.0f,  // 20
+	-0.7071f, 0.0f, 0.0f, 0.7071f, // 21
+	-0.5f, 0.5f, 0.5f, 0.5f,       // 22
+	0.0f, 0.7071f, 0.7071f, 0.0f,  // 23
+	-0.5f, -0.5f, -0.5f, 0.5f      // 24
+};
+#endif
 
 static float last_lin_a[3] = {0}; // vector to hold last linear accelerometer
 
@@ -414,6 +445,29 @@ void sensor_fusion_invalidate(void)
 	}
 }
 
+#if CONFIG_SELECT_DEVICE_ORIENTATION
+void next_device_orientation(void)
+{
+	const size_t orientation_cnt = ARRAY_SIZE(device_orientation) / 4;
+	if(++device_orientation_idx == orientation_cnt)
+		device_orientation_idx = 0;
+	set_device_orientation(device_orientation_idx);
+}
+
+void set_device_orientation(size_t n)
+{
+	const size_t max = ARRAY_SIZE(device_orientation) / 4 - 1;
+	if(n > max)
+	{
+		printk("Expected a number between 0 and %d\n", max);
+		return;
+	}
+	device_orientation_idx = n;
+	memcpy(&q3[0], &device_orientation[4 * n], 4 * sizeof(float));
+	printk("Orientation quat: %f %f %f %f\n", q3[0], q3[1], q3[2], q3[3]);
+}
+#endif
+
 int sensor_update_time_ms = 6;
 
 // TODO: get rid of it.. ?
@@ -734,8 +788,10 @@ void main_imu_thread(void)
 				float mz = raw_m[2];
 				float m[] = {SENSOR_MAGNETOMETER_AXES_ALIGNMENT};
 
+#ifndef SENSOR_SEND_RAW_MAG // XXX skip fusion for testing
 				// Process fusion
 				sensor_fusion->update_mag(m, sensor_update_time_ms / 1000.0); // TODO: use actual time?
+#endif
 
 				v_rotate(m, q3, m); // magnetic field in local device frame, no other transformation will be done
 				connection_update_sensor_mag(m);

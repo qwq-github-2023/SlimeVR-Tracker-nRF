@@ -114,7 +114,9 @@ void sensor_calibration_process_mag(float m[3])
 //	for (int i = 0; i < 3; i++)
 //		m[i] -= magBias[i];
 	sensor_sample_mag(m);
+#ifndef SENSOR_SEND_RAW_MAG // XXX skip soft iron renormalization
 	apply_BAinv(m, magBAinv);
+#endif
 }
 
 void sensor_calibration_update_sensor_ids(int imu)

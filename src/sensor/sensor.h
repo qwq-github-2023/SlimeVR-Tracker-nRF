@@ -38,6 +38,9 @@ void sensor_scan_clear(void);
 void sensor_retained_read(void);
 void sensor_retained_write(void);
 
+void set_device_orientation(size_t);
+void next_device_orientation();
+
 void sensor_shutdown(void);
 uint8_t sensor_setup_WOM(void);
 

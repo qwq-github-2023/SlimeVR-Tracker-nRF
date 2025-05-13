@@ -4,6 +4,7 @@
 #include "sensor/calibration.h"
 #include "connection/esb.h"
 #include "build_defines.h"
+#include "parse_args.h"
 
 #if CONFIG_USB_DEVICE_STACK
 #define USB DT_NODELABEL(usbd)
@@ -196,6 +197,25 @@ static void print_uptime(const uint64_t ticks, const char *name)
 	printk("%s: %02u:%02u:%02u.%03u,%03u\n", name, hours, minutes, seconds, milliseconds, microseconds);
 }
 
+#if CONFIG_SELECT_DEVICE_ORIENTATION
+static void select_device_orientation(char* argv[], size_t argc)
+{
+	if (argc == 2)
+	{
+		errno = 0;
+		uint32_t n = parse_uint(argv[1], 10);
+		if (errno == ERANGE)
+		{
+			printk("Failed to parse a number\n");
+			return;
+		}
+		set_device_orientation(n);
+	}
+	else
+		printk("Requires an index\n");
+}
+#endif
+
 static void print_meow(void)
 {
 	int64_t ticks = k_uptime_ticks();
@@ -236,86 +256,76 @@ static void console_thread(void)
 	printk("uptime                       Get device uptime\n");
 	printk("reboot                       Soft reset the device\n");
 	printk("calibrate                    Calibrate sensor ZRO\n");
-
-	uint8_t command_info[] = "info";
-	uint8_t command_uptime[] = "uptime";
-	uint8_t command_reboot[] = "reboot";
-	uint8_t command_calibrate[] = "calibrate";
-
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
 	printk("6-side                       Calibrate 6-side accelerometer\n");
-
-	uint8_t command_6_side[] = "6-side";
 #endif
 
 #if SENSOR_MAG_EXISTS
 	printk("mag                          Clear magnetometer calibration\n");
-
-	uint8_t command_mag[] = "mag";
 #endif
 
 	printk("pair                         Clear pairing data\n");
-
-	uint8_t command_pair[] = "pair";
-
 #if DFU_EXISTS
 	printk("dfu                          Enter DFU bootloader\n");
+#endif
 
-	uint8_t command_dfu[] = "dfu";
+#if CONFIG_SELECT_DEVICE_ORIENTATION
+	printk("quat <index>                 Choose device orientation\n");
 #endif
 
 	printk("meow                         Meow!\n");
 
-	uint8_t command_meow[] = "meow";
-
 	while (1) {
 #if USB_EXISTS
-		uint8_t *line = console_getline();
+		char *line = console_getline();
 #else
-		uint8_t *line = rtt_console_getline();
+		char *line = rtt_console_getline();
 #endif
-		for (uint8_t *p = line; *p; ++p) {
+		for (char *p = line; *p; ++p) {
 			*p = tolower(*p);
 		}
 
-		if (memcmp(line, command_info, sizeof(command_info)) == 0)
+		char* argv[6] = {};
+		size_t argc = parse_argv(line, argv, ARRAY_SIZE(argv));
+
+		if (strcmp(argv[0], "info") == 0)
 		{
 			print_info();
 		}
-		else if (memcmp(line, command_uptime, sizeof(command_uptime)) == 0)
+		else if (strcmp(argv[0], "uptime") == 0)
 		{
 			uint64_t uptime = k_uptime_ticks();
 			print_uptime(uptime, "Uptime");
 			print_uptime(uptime - retained->uptime_latest + retained->uptime_sum, "Accumulated");
 		}
-		else if (memcmp(line, command_reboot, sizeof(command_reboot)) == 0)
+		else if (strcmp(argv[0], "reboot") == 0)
 		{
 			sys_request_system_reboot();
 		}
-		else if (memcmp(line, command_calibrate, sizeof(command_calibrate)) == 0)
+		else if (strcmp(argv[0], "calibrate") == 0)
 		{
 			sensor_request_calibration();
 		}
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
-		else if (memcmp(line, command_6_side, sizeof(command_6_side)) == 0)
+		else if (strcmp(argv[0], "6-side") == 0)
 		{
 			sensor_request_calibration_6_side();
 		}
 #endif
 #if SENSOR_MAG_EXISTS
-		else if (memcmp(line, command_mag, sizeof(command_mag)) == 0)
+		else if (strcmp(argv[0], "mag") == 0)
 		{
 			sensor_calibration_clear_mag(true);
 		}
 #endif
-		else if (memcmp(line, command_pair, sizeof(command_pair)) == 0) 
+		else if (strcmp(argv[0], "pair") == 0) 
 		{
 //			reboot_counter_write(102);
 			esb_reset_pair(); // TODO: make not require reboot
 			sys_request_system_reboot();
 		}
 #if DFU_EXISTS
-		else if (memcmp(line, command_dfu, sizeof(command_dfu)) == 0)
+		else if (strcmp(argv[0], "dfu") == 0)
 		{
 #if ADAFRUIT_BOOTLOADER
 			NRF_POWER->GPREGRET = 0x57;
@@ -326,7 +336,13 @@ static void console_thread(void)
 #endif
 		}
 #endif
-		else if (memcmp(line, command_meow, sizeof(command_meow)) == 0) 
+#if CONFIG_SELECT_DEVICE_ORIENTATION
+		else if (strcmp(argv[0], "quat") == 0)
+		{
+			select_device_orientation(argv, argc);
+		}
+#endif
+		else if (strcmp(argv[0], "meow") == 0) 
 		{
 			print_meow();
 		}
