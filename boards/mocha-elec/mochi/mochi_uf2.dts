@@ -8,18 +8,17 @@
 &pinctrl {
 	pwm0_default: pwm0_default {
 		group1 {
-			psels = <NRF_PSEL(PWM_OUT0, 0, 22)>, // Red
-				<NRF_PSEL(PWM_OUT1, 0, 20)>, // Green
+			psels = <NRF_PSEL(PWM_OUT0, 0, 20)>, // Red
+				<NRF_PSEL(PWM_OUT1, 0, 9)>, // Green
 				<NRF_PSEL(PWM_OUT2, 0, 17)>; // Blue
-			nordic,drive-mode = <NRF_DRIVE_S0S1>; // Previously <NRF_DRIVE_D0S1>
-			nordic,invert;
+			nordic,drive-mode = <NRF_DRIVE_D0S1>;
 		};
 	};
 
 	pwm0_sleep: pwm0_sleep {
 		group1 {
-			psels = <NRF_PSEL(PWM_OUT0, 0, 22)>, // Red
-				<NRF_PSEL(PWM_OUT1, 0, 20)>, // Green
+			psels = <NRF_PSEL(PWM_OUT0, 0, 20)>, // Red
+				<NRF_PSEL(PWM_OUT1, 0, 9)>, // Green
 				<NRF_PSEL(PWM_OUT2, 0, 17)>; // Blue
 			low-power-enable;
 		};
@@ -27,17 +26,17 @@
 
 	spi3_default: spi3_default {
 		group1 {
-			psels = <NRF_PSEL(SPIM_MISO, 0, 4)>,
+			psels = <NRF_PSEL(SPIM_MISO, 1, 9)>,
 					<NRF_PSEL(SPIM_MOSI, 0, 5)>,
-					<NRF_PSEL(SPIM_SCK, 1, 9)>;
+					<NRF_PSEL(SPIM_SCK, 0, 4)>;
 		};
 	};
 
 	spi3_sleep: spi3_sleep {
 		group1 {
-			psels = <NRF_PSEL(SPIM_MISO, 0, 4)>,
+			psels = <NRF_PSEL(SPIM_MISO, 1, 9)>,
 					<NRF_PSEL(SPIM_MOSI, 0, 5)>,
-					<NRF_PSEL(SPIM_SCK, 1, 9)>;
+					<NRF_PSEL(SPIM_SCK, 0, 4)>;
 			low-power-enable;
 		};
 	};
@@ -58,15 +57,28 @@
 	pwmleds {
 		compatible = "pwm-leds";
 		pwm_led0: pwm_led_0 {
-			pwms = <&pwm0 0 PWM_MSEC(1) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm0 0 PWM_MSEC(1) PWM_POLARITY_NORMAL>;
 		};
 		pwm_led1: pwm_led_1 {
-			pwms = <&pwm0 1 PWM_MSEC(1) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm0 1 PWM_MSEC(1) PWM_POLARITY_NORMAL>;
 		};
 		pwm_led2: pwm_led_2 {
-			pwms = <&pwm0 2 PWM_MSEC(1) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm0 2 PWM_MSEC(1) PWM_POLARITY_NORMAL>;
 		};
 	};
+
+	leds {
+        compatible = "gpio-leds";
+        led0: led_0 {
+            gpios = <&gpio0 20 GPIO_OPEN_SOURCE>;
+        };
+        led1: led_1 {
+            gpios = <&gpio0 9 GPIO_OPEN_SOURCE>;
+        };
+        led2: led_2 {
+            gpios = <&gpio0 17 GPIO_OPEN_SOURCE>;
+        };
+    };
 
 	buttons {
 		compatible = "gpio-keys";
@@ -81,24 +93,28 @@
 		pwm-led0 = &pwm_led0;
 		pwm-led1 = &pwm_led1;
 		pwm-led2 = &pwm_led2;
+		led0 = &led0;
+        led1 = &led1;
+        led2 = &led2;
 	};
 
 	battery-divider {
 		compatible = "voltage-divider";
 		status = "okay";
-		io-channels = <&adc 4>;
-		output-ohms = <1200000>;
-		full-ohms = <(2000000+1200000)>;
-		power-gpios = <&gpio0 31 (GPIO_OPEN_DRAIN | GPIO_ACTIVE_LOW)>;
+		io-channels = <&adc 7>;
+		output-ohms = <3300000>;
+		full-ohms = <(5600000+3300000)>;
 	};
 
 	zephyr,user {
-		int0-gpios = <&gpio0 1 0>;
-		chg-gpios = <&gpio0 29 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		stby-gpios = <&gpio0 28 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		clk-gpios = <&gpio0 2 (GPIO_OPEN_DRAIN)>;
-		dcdc-gpios = <&gpio0 10 GPIO_OPEN_DRAIN>;
-		ldo-gpios = <&gpio0 3 GPIO_PUSH_PULL>;
+		int0-gpios = <&gpio0 11 0>;
+		chg-gpios = <&gpio0 28 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		chg-en-gpios = <&gpio0 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>;
+		stby-gpios = <&gpio0 29 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		clk-gpios = <&gpio0 30 (GPIO_OPEN_DRAIN)>;
+		led0-gpios = <&gpio0 20 (GPIO_OPEN_SOURCE)>;
+		led1-gpios = <&gpio0 9 (GPIO_OPEN_SOURCE)>;
+		led2-gpios = <&gpio0 17 (GPIO_OPEN_SOURCE)>;
 	};
 
 };
@@ -149,7 +165,7 @@ zephyr_udc0: &usbd {
 	pinctrl-0 = <&spi3_default>;
 	pinctrl-1 = <&spi3_sleep>;
 	pinctrl-names = "default", "sleep";
-	cs-gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
 
 	imu_spi: imu_spi@0 {
 		compatible = "vnd,spi-device";
