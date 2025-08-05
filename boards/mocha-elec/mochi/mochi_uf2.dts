@@ -94,8 +94,8 @@
 		pwm-led1 = &pwm_led1;
 		pwm-led2 = &pwm_led2;
 		led0 = &led0;
-        led1 = &led1;
-        led2 = &led2;
+		led1 = &led1;
+		led2 = &led2;
 	};
 
 	battery-divider {
