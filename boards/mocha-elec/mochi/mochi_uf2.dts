@@ -68,17 +68,17 @@
 	};
 
 	leds {
-        compatible = "gpio-leds";
-        led0: led_0 {
-            gpios = <&gpio0 20 GPIO_OPEN_SOURCE>;
-        };
-        led1: led_1 {
-            gpios = <&gpio0 9 GPIO_OPEN_SOURCE>;
-        };
-        led2: led_2 {
-            gpios = <&gpio0 17 GPIO_OPEN_SOURCE>;
-        };
-    };
+		compatible = "gpio-leds";
+		led0: led_0 {
+			gpios = <&gpio0 20 GPIO_OPEN_SOURCE>;
+		};
+		led1: led_1 {
+			gpios = <&gpio0 9 GPIO_OPEN_SOURCE>;
+		};
+		led2: led_2 {
+			gpios = <&gpio0 17 GPIO_OPEN_SOURCE>;
+		};
+	};
 
 	buttons {
 		compatible = "gpio-keys";
