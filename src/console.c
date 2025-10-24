@@ -214,6 +214,52 @@ static void print_battery(void)
 	}
 }
 
+static void print_qversion(void)
+{
+	printk("SlimeVR Modified By QiWenQWQ(Tracker)\n");
+	printk("Copyright © 2025 QiWenQWQ. All rights reserved.\n\
+This software and its accompanying documentation are the intellectual property of QiWenQWQ.  \n\
+Unauthorized copying, modification, distribution, or use of this software, in whole or in part,  \n\
+for any purpose other than that expressly permitted by QiWenQWQ, is strictly prohibited.\n\
+This software is licensed, not sold. The licensee is granted the right to use this software  \n\
+only within the scope defined by the license agreement. Any violation of this agreement  \n\
+may result in legal action.\n\
+QiWenQWQ reserves the right to improve, modify, or discontinue the software at any time  \n\
+without prior notice.\n\
+For licensing, business cooperation, or support, please contact:  \n\
+qiwenqwq@outlook.com\n");
+	printk("QmolTracker V1.0.0\n");
+}
+
+static void print_qgpio(void)
+{
+    static const struct device *gpio0_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+	static const uint8_t gpio0_pins[] = {
+		8,   // clk-gpios
+		15,  // led-gpios
+		17,  // SPI CS
+		24,  // SPI MISO
+		6,   // SPI MOSI
+		8,   // SPI SCK
+		29,  // int0-gpios
+		31,  // vcc-gpios
+	};
+    if (!device_is_ready(gpio0_dev)) {
+        printk("%s device not ready!\n", "GPIO0");
+        return;
+    }
+
+    printk("=== %s Status ===\n", "GPIO0");
+    for (size_t i = 0; i < sizeof(gpio0_pins)/sizeof(gpio0_pins[0]); i++) {
+        int val = gpio_pin_get(gpio0_dev, gpio0_pins[i]);
+        if (val < 0)
+            printk("Pin %2d: error\n", gpio0_pins[i]);
+        else
+            printk("Pin %2d: %d\n", gpio0_pins[i], val);
+    }
+    printk("====================\n");
+}
+
 static void print_info(void)
 {
 	print_board();
@@ -341,6 +387,10 @@ static void console_thread(void)
 	printk("*** " CONFIG_USB_DEVICE_MANUFACTURER " " CONFIG_USB_DEVICE_PRODUCT " ***\n");
 #endif
 	printk(FW_STRING);
+	printk("Modified By QiWenQWQ\n");
+	printk("Ciallo~ (∠・ω< )⌒★\n");
+	printk("qgpio                        Get gpio information\n");
+	printk("qversion                     Get qversion information\n");
 	printk("info                         Get device information\n");
 	printk("uptime                       Get device uptime\n");
 	printk("reboot                       Soft reset the device\n");
@@ -348,6 +398,8 @@ static void console_thread(void)
 	printk("scan                         Restart sensor scan\n");
 	printk("calibrate                    Calibrate sensor ZRO\n");
 
+	uint8_t command_qgpio[] = "qgpio";
+	uint8_t command_qversion[] = "qversion";
 	uint8_t command_info[] = "info";
 	uint8_t command_uptime[] = "uptime";
 	uint8_t command_reboot[] = "reboot";
@@ -430,8 +482,16 @@ static void console_thread(void)
 				}
 			}
 		}
-
-		if (memcmp(line, command_info, sizeof(command_info)) == 0)
+		
+		if (memcmp(line, command_qgpio, sizeof(command_qgpio)) == 0)
+		{
+			print_qgpio();
+		}
+		else if (memcmp(line, command_qversion, sizeof(command_qversion)) == 0)
+		{
+			print_qversion();
+		}
+		else if (memcmp(line, command_info, sizeof(command_info)) == 0)
 		{
 			print_info();
 		}
