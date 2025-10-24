@@ -38,7 +38,7 @@ static int64_t last_data_time = 0;
 LOG_MODULE_REGISTER(connection, LOG_LEVEL_INF);
 
 static void connection_thread(void);
-K_THREAD_DEFINE(connection_thread_id, 512, connection_thread, NULL, NULL, NULL, 8, 0, 0);
+K_THREAD_DEFINE(connection_thread_id, 512, connection_thread, NULL, NULL, NULL, CONNECTION_THREAD_PRIORITY, K_FP_REGS, 0);
 
 void connection_clocks_request_start(void)
 {
