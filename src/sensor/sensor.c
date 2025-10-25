@@ -717,7 +717,9 @@ int sensor_init(void)
 	LOG_INF("FIFO THS/WM/WTM GPIO pin: %u, config: %u", int0_gpios, pin_config);
 	uint32_t pull_flags = ((pin_config >> 4) == NRF_GPIO_PIN_PULLDOWN ? GPIO_PULL_DOWN : 0) | ((pin_config >> 4) == NRF_GPIO_PIN_PULLUP ? GPIO_PULL_UP : 0);
 	gpio_pin_configure_dt(&int0, GPIO_INPUT | pull_flags);
-	uint32_t int_flags = ((pin_config & 0xF) == NRF_GPIO_PIN_SENSE_LOW ? GPIO_INT_EDGE_FALLING : 0) | ((pin_config & 0xF) == NRF_GPIO_PIN_SENSE_HIGH ? GPIO_INT_EDGE_RISING : 0);
+	// uint32_t int_flags = ((pin_config & 0xF) == NRF_GPIO_PIN_SENSE_LOW ? GPIO_INT_EDGE_FALLING : 0) | ((pin_config & 0xF) == NRF_GPIO_PIN_SENSE_HIGH ? GPIO_INT_EDGE_RISING : 0);
+	uint32_t int_flags = ((pin_config & 0xF) == NRF_GPIO_PIN_SENSE_HIGH ? GPIO_INT_LEVEL_HIGH : 0) |
+                     ((pin_config & 0xF) == NRF_GPIO_PIN_SENSE_LOW  ? GPIO_INT_LEVEL_LOW  : 0);
 	gpio_pin_interrupt_configure_dt(&int0, int_flags);
 	gpio_init_callback(&sensor_cb_data, sensor_interrupt_handler, BIT(int0.pin));
 	gpio_add_callback(int0.port, &sensor_cb_data);
@@ -855,7 +857,7 @@ void sensor_loop(void)
 			}
 
 			// Suspend devices
-			sys_interface_suspend();
+			// sys_interface_suspend();
 
 			// Fuse all data
 			float a_sum[3] = {0};
@@ -968,9 +970,9 @@ void sensor_loop(void)
 			if ((packets != 0 || k_uptime_get() > 100) && processed_packets == 0)
 			{
 				if (packets)
-					LOG_WRN("No packets processed");
+					LOG_WRN("No packets processed(%u, %lld, %d)", packets, k_uptime_get(), processed_packets);
 				else
-					LOG_WRN("No packets in buffer");
+					LOG_WRN("No packets in buffer(%u, %lld, %d)", packets, k_uptime_get(), processed_packets);
 				if (++packet_errors == 10)
 				{
 					LOG_ERR("Packet error threshold exceeded");
@@ -1039,7 +1041,7 @@ void sensor_loop(void)
 						LOG_DBG("Switching magnetometer ODR to %.2fHz", 1.0 / (double)mag_actual_time);
 					mag_use_oneshot = false;
 				}
-				sys_interface_suspend();
+				// sys_interface_suspend();
 			}
 
 			// Update orientation
