@@ -19,6 +19,8 @@
 
 #define SETTINGS_ID 30
 
+#define QWRITEDOWN_ID 1000
+#define QWRITEDOWNSIZE_ID 1001
 void configure_sense_pins(void);
 
 uint8_t reboot_counter_read(void);

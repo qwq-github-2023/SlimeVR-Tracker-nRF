@@ -75,6 +75,10 @@ struct retained_data {
 	 * including this field.
 	 */
 	uint32_t crc;
+
+	//QWriteDown data
+	uint8_t qwritedown_data[256];
+	uint8_t qwritedown_size;
 };
 
 /* Up to 1 KB of retained data allowed right now.

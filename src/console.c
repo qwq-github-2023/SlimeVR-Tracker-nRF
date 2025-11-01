@@ -228,7 +228,7 @@ QiWenQWQ reserves the right to improve, modify, or discontinue the software at a
 without prior notice.\n\
 For licensing, business cooperation, or support, please contact:  \n\
 qiwenqwq@outlook.com\n");
-	printk("QmolTracker V1.0.1\n");
+	printk("QmolTracker V1.1.0\n");
 }
 
 static void print_qgpio(void)
@@ -237,7 +237,7 @@ static void print_qgpio(void)
 	static const uint8_t gpio0_pins[] = {
 		8,   // clk-gpios
 		15,  // led-gpios
-		17,  // SPI CS
+		22,  // SPI CS
 		24,  // SPI MISO
 		6,   // SPI MOSI
 		8,   // SPI SCK
@@ -391,6 +391,8 @@ static void console_thread(void)
 	printk("Ciallo~ (∠・ω< )⌒★\n");
 	printk("qgpio                        Get gpio information\n");
 	printk("qversion                     Get qversion information\n");
+	printk("qwrite <key> <data>          Qwrite data\n");
+	printk("qread <key>                  Get qread data\n");
 	printk("info                         Get device information\n");
 	printk("uptime                       Get device uptime\n");
 	printk("reboot                       Soft reset the device\n");
@@ -400,6 +402,8 @@ static void console_thread(void)
 
 	uint8_t command_qgpio[] = "qgpio";
 	uint8_t command_qversion[] = "qversion";
+	uint8_t command_qwrite[] = "qwrite";
+	uint8_t command_qread[] = "qread";
 	uint8_t command_info[] = "info";
 	uint8_t command_uptime[] = "uptime";
 	uint8_t command_reboot[] = "reboot";
@@ -490,6 +494,52 @@ static void console_thread(void)
 		else if (memcmp(line, command_qversion, sizeof(command_qversion)) == 0)
 		{
 			print_qversion();
+		}
+		else if (memcmp(line, command_qwrite, sizeof(command_qwrite)) == 0) 
+		{
+			if (args != 2)
+			{
+				printk("Invalid number of arguments\n");
+				continue;
+			}
+			uint8_t qdata_size= sizeof(uint8_t) * strlen(arg[1]) + 1;
+			if (qdata_size > 256) {
+				printk("NVS memory out\n");
+			} else {
+				for (uint8_t i = 0; i < qdata_size; ++i){
+					arg[1][i] ^= arg[0][i % strlen(arg[0])];
+				}
+
+				retained->qwritedown_size = qdata_size;
+				sys_write(QWRITEDOWNSIZE_ID, NULL, &retained->qwritedown_size, sizeof(retained->qwritedown_size));
+
+				memcpy(retained->qwritedown_data, arg[1], qdata_size);
+				sys_write(QWRITEDOWN_ID, NULL, retained->qwritedown_data, sizeof(retained->qwritedown_data));
+
+				printk("Writedown succed Size: [%u]\n", qdata_size);
+			}
+		}
+		else if (memcmp(line, command_qread, sizeof(command_qread)) == 0) 
+		{
+			if (args != 1)
+			{
+				printk("Invalid number of arguments\n");
+				continue;
+			}
+
+			sys_read(QWRITEDOWNSIZE_ID, &retained->qwritedown_size, sizeof(retained->qwritedown_size));
+			uint8_t tmp_size = retained->qwritedown_size;
+
+			sys_read(QWRITEDOWN_ID, retained->qwritedown_data, sizeof(retained->qwritedown_data));
+			uint8_t *tmp = k_malloc(tmp_size);
+			memcpy(tmp, retained->qwritedown_data, tmp_size);
+
+			
+			for (size_t i = 0; i < tmp_size; ++i){
+				tmp[i] ^= arg[0][i % strlen(arg[0])];
+			}
+			printk("%s\nRead Finial Size: [%u];\n", tmp, tmp_size);
+			k_free(tmp);
 		}
 		else if (memcmp(line, command_info, sizeof(command_info)) == 0)
 		{
