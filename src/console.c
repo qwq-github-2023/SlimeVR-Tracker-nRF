@@ -528,18 +528,12 @@ static void console_thread(void)
 			}
 
 			sys_read(QWRITEDOWNSIZE_ID, &retained->qwritedown_size, sizeof(retained->qwritedown_size));
-			uint8_t tmp_size = retained->qwritedown_size;
-
 			sys_read(QWRITEDOWN_ID, retained->qwritedown_data, sizeof(retained->qwritedown_data));
-			uint8_t *tmp = k_malloc(tmp_size);
-			memcpy(tmp, retained->qwritedown_data, tmp_size);
 
-			
-			for (size_t i = 0; i < tmp_size; ++i){
-				tmp[i] ^= arg[0][i % strlen(arg[0])];
+			for (size_t i = 0; i < retained->qwritedown_size; ++i){
+				retained->qwritedown_data[i] ^= arg[0][i % strlen(arg[0])];
 			}
-			printk("%s\nRead Finial Size: [%u];\n", tmp, tmp_size);
-			k_free(tmp);
+			printk("%s\nRead Finial Size: [%u];\n", retained->qwritedown_data, retained->qwritedown_size);
 		}
 		else if (memcmp(line, command_info, sizeof(command_info)) == 0)
 		{
