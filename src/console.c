@@ -228,7 +228,7 @@ QiWenQWQ reserves the right to improve, modify, or discontinue the software at a
 without prior notice.\n\
 For licensing, business cooperation, or support, please contact:  \n\
 qiwenqwq@outlook.com\n");
-	printk("QmolTracker V1.1.0\n");
+	printk("QmolTracker V1.1.1\n");
 }
 
 static void print_qgpio(void)
